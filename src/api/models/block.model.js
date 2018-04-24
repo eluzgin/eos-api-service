@@ -108,7 +108,7 @@ blockSchema.statics = {
    */
   async get(block_ident, { projection = {} } = {}) {
     const isId = isNaN(Number(block_ident));
-    const filter = isId ? { block_id: block_ident } : { block_num: block_ident };
+    const filter = isId ? { block_id: block_ident } : { block_num: Number(block_ident) };
 
     const $match = {
       $match: filter,
@@ -153,23 +153,35 @@ blockSchema.statics = {
    * @returns {Promise<Block[]>}
    */
   list({ skip = 0, limit = 30, sort, filter, projection }) {
-    const $match = isEmpty(filter) ? null : { $match: filter };
-    const $lookup = {
-      $lookup: {
-        from: 'Transactions',
-        localField: 'transactions',
-        foreignField: '_id',
-        as: 'transactions',
-      },
-    };
-    const $project = projection ? { $project: projection } : null;
-    const $skip = { $skip: skip };
-    const $limit = { $limit: limit };
-    const $sort = sort ? { $sort: sort } : null;
+    const $match = isEmpty(filter) ? {} : filter;
+    const $subSelect = {};
 
-    const agg = compact([$match, $lookup, $project, $sort, $skip, $limit]);
+    // Pull out 'transactions.*' field projects for
+    // populate select to ensure we *only* return necessary fields
+    // via the populate query
+    if (!isEmpty(projection)) {
+      Object.keys(projection).forEach((field) => {
+        if (/^transactions\./.test(field)) {
+          const key = field.slice('transactions.'.length);
+          $subSelect[key] = projection[field];
+        }
+      });
+    }
 
-    return this.aggregate(agg).exec();
+    return this.find($match)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .populate({
+        path: 'transactions',
+        options: {
+          lean: true,
+          select: $subSelect,
+        },
+      })
+      .select(projection)
+      .lean()
+      .exec();
   },
 };
 

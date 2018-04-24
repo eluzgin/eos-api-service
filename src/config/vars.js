@@ -49,6 +49,7 @@ module.exports = {
   mongo: {
     uri: process.env.NODE_ENV === 'test' ? process.env.MONGO_URI_TESTS : process.env.MONGO_URI,
   },
+  service_name: process.env.SERVICE_NAME,
   mail,
   eosd: {
     uri:
@@ -57,7 +58,8 @@ module.exports = {
         : process.env.EOSD_CONNECTOR_URI,
   },
   faucet: {
-    notify: process.env.FAUCET_NOTIFY,
+    notify: process.env.FAUCET_NOTIFY_ADDRESS,
+    fromAddress: process.env.FAUCET_FROM_ADDRESS,
   },
   logs: process.env.NODE_ENV === 'production' ? 'combined' : 'dev',
 };
